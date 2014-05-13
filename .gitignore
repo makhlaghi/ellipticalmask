@@ -1,0 +1,6 @@
+*.[oa]
+*~
+*.fits
+*.txt
+
+ellipticalmask
