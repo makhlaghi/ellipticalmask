@@ -48,7 +48,9 @@ Options that don't run `ellipticalmask`:
 On/Off options: 
 
 * `-z`: Get the sizes of the input image, but use a
-zero valued image to build the mask on.
+  zero valued image to build the mask on.
+* `-s`: Print the average and standard deviation 
+  of un masked regions.
 
 Options with arguments (run `ellipticalmask -h` to view default values.)
 * `-x`: NAXIS1 size (width as seen in ds9) of the image.

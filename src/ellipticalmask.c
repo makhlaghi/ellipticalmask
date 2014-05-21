@@ -181,8 +181,8 @@ ellipmask(struct elmaskparams *p)
 {
   double *t;
   unsigned char *mask;
-  size_t i, nc, size, *ngbs;
   float sky, skystd, maskvalue;
+  size_t i, nc, size, *ngbs, unmaskedsize;
 
   size=p->s0*p->s1;
   assert( ( mask=calloc(size, sizeof *mask) )!=NULL  );
@@ -202,9 +202,12 @@ ellipmask(struct elmaskparams *p)
     {
       if(p->reportsky)
 	{
-	  favestd(p->img, size, &sky, &skystd, mask);
-	  printf("\nUndetected regions: average: %f, std: %f\n", 
-		 sky, skystd);
+	  favestd(p->img, size, &sky, &skystd, &unmaskedsize, mask);
+	  printf("\nStatistics of unmasked regions:\n"
+		 "\t%lu pixels of %lu pixels in whole image.\n" 
+		 "\tAverage           : %f\n"
+		 "\tstandard deviation: %f\n", 
+		 unmaskedsize, size, sky, skystd);
 	}
       floatmin(p->img, size, &maskvalue);
       maskvalue-=1;

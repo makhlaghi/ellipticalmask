@@ -26,7 +26,7 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 
 void
 favestd(float *in, size_t size, float *ave, float *std, 
-	unsigned char *mask);
+	size_t *unmaskedsize, unsigned char *mask);
 
 void
 floatmin(float *in, size_t size, float *min);

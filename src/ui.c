@@ -72,7 +72,7 @@ printhelp(struct elmaskparams *p, struct uiparams *up)
   printf(" -z:\n\tOnly use the image size, mask an empty image.\n\n");
 
   printf(" -s:\n\tReport average and standard deviation\n");
-  printf("\tof undetected regions.\n\n");
+  printf("\tof un-masked regions.\n\n");
 
 
 

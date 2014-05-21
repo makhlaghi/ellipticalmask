@@ -136,7 +136,7 @@ floatsumsquaredmask(float *in, unsigned char *mask,
    mask is assumed to be unsigned char.  */
 void
 favestd(float *in, size_t size, float *ave, float *std, 
-    unsigned char *mask)
+	size_t *unmaskedsize, unsigned char *mask)
 {
   size_t nsize1, nsize2;
   float sum, sum2;
@@ -154,6 +154,7 @@ favestd(float *in, size_t size, float *ave, float *std,
     }
   *ave=sum/size;
   *std=sqrt( (sum2-sum*sum/size)/size );
+  *unmaskedsize=size;
 }
 
 
