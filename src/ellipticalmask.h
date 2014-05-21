@@ -36,6 +36,7 @@ struct elmaskparams
 {
   int    blankmask;		/* Only make a blank mask. */
   int    reportsky;		/* 1: Report sky, 0: Don't. */
+  int   onlycircum;		/* 1: Only border of ellipse is shown. */
   float       *img;		/* Float array of image. */
   size_t        s0;		/* Image zeroth axis (in C). */
   size_t        s1;		/* Image first axis (in C). */

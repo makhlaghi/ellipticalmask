@@ -23,6 +23,7 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 #define STATS_H
 
 #define MAXFD 1e30
+#define MINFD -1e30
 
 void
 favestd(float *in, size_t size, float *ave, float *std, 
@@ -30,5 +31,6 @@ favestd(float *in, size_t size, float *ave, float *std,
 
 void
 floatmin(float *in, size_t size, float *min);
+
 
 #endif

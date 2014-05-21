@@ -35,6 +35,12 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 
 
 
+
+
+
+/****************************************************************
+ *****************     Profile's first pixel   ******************
+ ****************************************************************/
 /* Find the first pixel in the image to begin building the profile.
 
    The input sizes and positions are based on the FITS standard,
@@ -128,6 +134,24 @@ findstartingpixel(size_t s0, size_t s1, float truncr,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/****************************************************************
+ *****************        Build the mask       ******************
+ ****************************************************************/
 /* See MockGals's ( http://astr.tohoku.ac.jp/~akhlaghi/mockgals )
    makeprofile() in src/mock.c and documentation for a very detailed
    review of how this function works.*/
@@ -155,6 +179,8 @@ makemask(unsigned char *mask, size_t *ngbs, size_t s0, size_t s1,
     {
       pop_from_ssll(&Q, &p);
 
+      if(mask[p]) continue;	/* The pixel is already masked. */
+
       r=elraddist(&e, p/s1, p%s1);
       if(r>truncr) continue;
       
@@ -176,10 +202,89 @@ makemask(unsigned char *mask, size_t *ngbs, size_t s0, size_t s1,
 
 
 
+
+/* Similar to make mask, but will only mask the borders of each region.*/
+int
+makeborder(unsigned char *mask, size_t *filledindexs, size_t *ngbs, 
+	   size_t s0, size_t s1, float x_c, float y_c, float pa_d, 
+	   float q, float truncr)
+{
+  float r;
+  struct elraddistp e;
+  struct ssll *Q=NULL;
+  size_t i=0, ngbi, p, counter=0;
+  
+  e.q=q;
+  e.t=M_PI*pa_d/180;
+  e.xc=x_c;          e.yc=y_c;
+  e.cos=cos(e.t);    e.sin=sin(e.t);
+
+  findstartingpixel(s0, s1, truncr, &e, &p);
+  if(p==NONINDEX)
+    return 0;
+
+  add_to_ssll(&Q, p);  
+
+  while(Q)
+    {
+      pop_from_ssll(&Q, &p);
+
+      if(mask[p]) continue;
+
+      r=elraddist(&e, p/s1, p%s1);
+      if(r>truncr) 
+	{
+	  mask[p]=1; 
+	  continue;
+	}
+      else 
+	{
+	  filledindexs[counter++]=p;
+	  mask[p]=2; 
+	}
+
+      /*array_to_fits("tmp2.fits", NULL, "", FLOAT_IMG, img, s0, s1);*/
+
+      ngbi=p*NGBSCOLS+ngbs[p*NGBSCOLS];
+      do
+	if(mask[ p=ngbs[ngbi]  ]==0)
+	  add_to_ssll(&Q, p);
+      while(ngbs[++ngbi]!=NONINDEX);
+    }
+
+  while(i<counter)
+    mask[ filledindexs[i++] ]=0;
+
+  return 1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/****************************************************************
+ *****************         Main function       ******************
+ ****************************************************************/
 void
 ellipmask(struct elmaskparams *p)
 {
   double *t;
+  size_t *filledindexs=NULL;
   unsigned char *mask;
   float sky, skystd, maskvalue;
   size_t i, nc, size, *ngbs, unmaskedsize;
@@ -191,9 +296,18 @@ ellipmask(struct elmaskparams *p)
   t=p->intable;
   nc=ELTABLENUMCOLS;
 
-  for(i=0;i<p->numellip;i++)
-    makemask(mask, ngbs, p->s0, p->s1, t[i*nc+XCOL], t[i*nc+YCOL],
-	     90-t[i*nc+PACOL], t[i*nc+QCOL], t[i*nc+TRUNCCOL]);
+  if(p->onlycircum)
+    {
+      assert( ( filledindexs=malloc(size*sizeof *filledindexs) )!=NULL  );
+      for(i=0;i<p->numellip;i++)
+	makeborder(mask, filledindexs, ngbs, p->s0, p->s1, t[i*nc+XCOL], 
+		   t[i*nc+YCOL], 90-t[i*nc+PACOL], t[i*nc+QCOL], 
+		   t[i*nc+TRUNCCOL]);
+    }
+  else
+    for(i=0;i<p->numellip;i++)
+      makemask(mask, ngbs, p->s0, p->s1, t[i*nc+XCOL], t[i*nc+YCOL], 
+		 90-t[i*nc+PACOL], t[i*nc+QCOL], t[i*nc+TRUNCCOL]);
   
   if(p->blankmask)
     array_to_fits(p->outname, NULL, "MASKED", BYTE_IMG, mask, 
@@ -211,6 +325,7 @@ ellipmask(struct elmaskparams *p)
 	}
       floatmin(p->img, size, &maskvalue);
       maskvalue-=1;
+      
       maskfloat(p->img, mask, size, maskvalue);
       array_to_fits(p->outname, NULL, "MASKED", FLOAT_IMG, p->img, 
 		    p->s0, p->s1);
@@ -218,4 +333,6 @@ ellipmask(struct elmaskparams *p)
 
   free(ngbs);
   free(mask);
+  if(filledindexs) 
+    free(filledindexs);
 }

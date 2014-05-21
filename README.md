@@ -51,6 +51,8 @@ On/Off options:
   zero valued image to build the mask on.
 * `-s`: Print the average and standard deviation 
   of un masked regions.
+* `-r`: Only mask the circumference of each ellipse.
+  not the whole inner area which is masked as default.
 
 Options with arguments (run `ellipticalmask -h` to view default values.)
 * `-x`: NAXIS1 size (width as seen in ds9) of the image.

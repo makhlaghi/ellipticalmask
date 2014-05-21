@@ -74,6 +74,8 @@ printhelp(struct elmaskparams *p, struct uiparams *up)
   printf(" -s:\n\tReport average and standard deviation\n");
   printf("\tof un-masked regions.\n\n");
 
+  printf(" -r:\n\tOnly mask the circumference of the ellipse.\n\n");
+
 
 
   printf("\n\n###### Options with arguments:\n");
@@ -349,6 +351,7 @@ setdefaultoptions(struct elmaskparams *p, struct uiparams *up)
   /* Options for ellipticalmask.c */
   p->reportsky     = 0;
   p->blankmask     = 0;
+  p->onlycircum    = 0;
   p->img           = NULL;
   p->intable       = NULL;
   p->numellip      = 0;
@@ -381,7 +384,7 @@ getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
 
   setdefaultoptions(p, &up);
 
-  while( (c=getopt(argc, argv, "vhzsx:y:i:I:a:b:c:d:e:f:")) != -1 )
+  while( (c=getopt(argc, argv, "vhzsrx:y:i:I:o:a:b:c:d:e:f:")) != -1 )
     switch(c)
       {
 	/* Information options (won't run program) */
@@ -399,6 +402,9 @@ getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
 	break;
       case 's':			/* Print sky and sky std. */
 	p->reportsky=1;
+	break;
+      case 'r':			/* Print the circumference */
+	p->onlycircum=1;
 	break;
 
 
