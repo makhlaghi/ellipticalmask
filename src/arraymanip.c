@@ -23,6 +23,8 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <assert.h>
 
+
+
 /* Check to see if a box defined by the two points (x1,y1) and (x2,y2)
    is inside an array of size size1 and size2. If it doesn't overlap,
    then x1=x2 and y1=y2.*/
@@ -39,4 +41,24 @@ checkifinarray(int *x1, int *y1, int *x2, int *y2, int s0, int s1)
   if(*y1<0) *y1=0;    if(*y1>s1) *y1=s1;
   if(*x2<0) *x2=0;    if(*x2>s0) *x2=s0;
   if(*y2<0) *y2=0;    if(*y2>s1) *y2=s1;
+}
+
+
+
+
+
+/* Mask (set all masked pixels to a desired value) a float array: */
+void
+maskfloat(float *in, unsigned char *mask, size_t size, float maskvalue)
+{
+  unsigned char *f;
+  f=mask+size;
+
+  do
+    {
+      if(*mask) *in=maskvalue;
+      in++;
+    }
+  while(++mask<f);
+ 
 }

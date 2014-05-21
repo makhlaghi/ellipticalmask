@@ -34,7 +34,6 @@ struct uiparams
   size_t a_col;		       /* Input ellipse Major axis col.     */
   size_t b_col;		       /* Input ellipse Minor axis col.     */
   size_t multip_col;	       /* Multiplication factor to a and b. */
-  int onlyimagesize;	       /* Only use the input image size.    */
 };
 
 void

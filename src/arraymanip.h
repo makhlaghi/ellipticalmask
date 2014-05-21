@@ -27,4 +27,8 @@ void
 checkifinarray(int *x1, int *y1, int *x2, int *y2, 
 	       int s0, int s1);
 
+void
+maskfloat(float *in, unsigned char *mask, size_t size, 
+	  float maskvalue);
+
 #endif 

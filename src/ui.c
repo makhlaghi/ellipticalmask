@@ -36,34 +36,124 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 
 
 
+/****************************************************************
+ *****************          Print info         ******************
+ ****************************************************************/
+void
+printversioninfo()
+{
+  printf("\n\nEllipticalMask %.1f\n", ELMASKVERSION);
+  printf("============\n");
+  printf("Make any number of elliptical masks on an image.\n");
+  printf("\nCopyright (C) 2014  Mohammad Akhlaghi\n");
+  printf("This program comes with ABSOLUTELY NO WARRANTY.\n");
+  printf("This is free software, and you are welcome to\n");
+  printf("modify and redistribute it under the\n");
+  printf("GNU Public License v3 or later.\n\n\n");
+}
+
+
+
+
+
+/* Print the help menu. */
+void
+printhelp(struct elmaskparams *p, struct uiparams *up)
+{
+  printversioninfo();
+
+  printf("\n\n###### Options that won't run EllipticalMask\n");
+  printf(" -h:\n\tPrint this help message.\n\n");
+  printf(" -v:\n\tPrint version and copyright information.\n\n\n");
+
+
+
+  printf("\n\n###### Options with no arguments:\n");
+  printf(" -z:\n\tOnly use the image size, mask an empty image.\n\n");
+
+  printf(" -s:\n\tReport average and standard deviation\n");
+  printf("\tof undetected regions.\n\n");
+
+
+
+  printf("\n\n###### Options with arguments:\n");
+  printf(" -x INTEGER:\n\tThe NAXIS0 size of the ");
+  printf("output FITS image.\n");
+  printf("\tIf -I (input FITS) is given, this is ignored.\n");
+  printf("\tdefault: %lu pixels\n\n", p->s1);
+
+  printf(" -y INTEGER:\n\tThe NAXIS1 size of the ");
+  printf("output FITS image.\n");
+  printf("\tIf -I (input FITS) is given, this is ignored.\n");
+  printf("\tdefault: %lu pixels\n\n", p->s0);
+
+  printf(" -i FILENAME:\n\tInput ASCII table.\n");
+  printf("\tNo default. Must be provided.\n\n");
+
+  printf(" -I FILENAME:\n\tInput FITS name.\n");
+  printf("\tIf not provided, a blank (all zero) image is made.\n\n");
+
+  printf(" -o FILENAME:\n\tOutput FITS image name.\n");
+  printf("\tdefault: '%s'\n\n", p->outname);
+
+  printf("\n\n----- Input table column info (count from one):\n");
+  printf(" -a INTEGER:\n\tX position (FITS standard) column.\n");
+  printf("\tdefault: '%lu'\n\n", up->x_col);
+
+  printf(" -b INTEGER:\n\tY position (FITS standard) column.\n");
+  printf("\tdefault: '%lu'\n\n", up->y_col);
+
+  printf(" -c INTEGER:\n\tPosition angle (in degrees) column.\n");
+  printf("\tdefault: '%lu'\n\n", up->pa_col);
+
+  printf(" -d INTEGER:\n\tMajor axis column.\n");
+  printf("\tdefault: '%lu'\n\n", up->a_col);
+
+  printf(" -e INTEGER:\n\tMinor axis column column.\n");
+  printf("\tdefault: '%lu'\n\n", up->b_col);
+
+  printf(" -f INTEGER:\n\tMajor axis multiple column.\n");
+  printf("\tdefault: '%lu'\n\n", up->multip_col);
+
+  exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /****************************************************************
- *****************     Small functions used    ******************
- *********************      in main()      **********************
+ ***************        Prepare parameters        ***************
  ****************************************************************/
-/* Set the default values for the inputs. */
+/* Check if the two size paramters are positive. */
 void
-setdefaultoptions(struct elmaskparams *p, struct uiparams *up)
+checksize(char *optarg, size_t *var, int opt)
 {
-  /* Options for ellipticalmask.c */
-  p->verb          = 0;
-  p->img           = NULL;
-  p->intable       = NULL;
-  p->numellip      = 0;
-  p->outname       = "masked.fits";
-  p->s0            = 200;
-  p->s1            = 200;
-
-  /* Internal options for ui.c */
-  up->intablename   = "";
-  up->infitsname    = "";
-  up->x_col         = 2;
-  up->y_col         = 3;
-  up->pa_col        = 4;
-  up->a_col         = 5;
-  up->b_col         = 6;
-  up->multip_col    = 7;
-  up->onlyimagesize = 0;
+  long tmp;
+  char *tailptr;
+  tmp=strtol(optarg, &tailptr, 0);
+  if(tmp<=0)
+    {
+      printf("\n\n Error: argument to -%c ", opt); 
+      printf("should be positive\n\n");
+      exit(EXIT_FAILURE);
+    }
+  *var=tmp;  
 }
 
 
@@ -114,13 +204,11 @@ readinputinfo(struct elmaskparams *p, struct uiparams *up)
       assert(intable.d!=NULL);		    /*something to free!   */
 
       freeasciitable(&intable);
-      if(p->verb)
-	printf("- Information for %lu ellipse%sread from '%s'.\n\n",
-	     p->numellip, p->numellip>1 ? "s " : " ", up->intablename);
     }
   else 
     {
-      fprintf(stderr, "\n\n\tERROR: Can't read %s.\n",up->intablename);
+      fprintf(stderr, "\n\n\tERROR: Can't read input table %s.\n", 
+	      up->intablename);
       fprintf(stderr, "\t\tAborted\n\n");
       exit(EXIT_FAILURE);
     }
@@ -187,21 +275,6 @@ checkremoveoutimage(char *outname)
 
 
 
-#define MAXFD 1e30
-void
-floatmin(float *in, size_t size, float *min)
-{
-  float tmin=MAXFD, *fpt;
-  fpt=in+size;
-  do
-    if(*in<tmin) tmin=*in;
-  while (++in<fpt);
-  *min=tmin;
-}
-
-
-
-
 
 void
 readmakeinputimage(struct elmaskparams *p, struct uiparams *up)
@@ -209,34 +282,40 @@ readmakeinputimage(struct elmaskparams *p, struct uiparams *up)
   void *img;
   int bitpix;
   FILE *tmpfile;
-  
+
+  /* Image exists and is read: */
   if ((tmpfile = fopen(up->infitsname, "r")) != NULL) 
     {
       fclose(tmpfile);
       fits_to_array(up->infitsname, 0, &bitpix, &img, &p->s0, &p->s1);
-      if(up->onlyimagesize)
+      if(p->blankmask)
 	{
-	  free(img);  	/* Free the array fits_to_array allocated */
-	  img=calloc(p->s0*p->s1, sizeof(float));
-	  assert(img!=NULL);
-	  p->maskvalue=1;
+	  free(img);
+	  img=NULL;
 	}
       else
-	{
-	  if(bitpix!=FLOAT_IMG)
-	    {
-	      printf("\n\nError: Only Float image is valid\n\n");
-	      exit(EXIT_FAILURE);
-	    }
-	  floatmin(img, p->s0*p->s1, &p->maskvalue);
-	  p->maskvalue-=1;
-	}
+	if(bitpix!=FLOAT_IMG)
+	  {
+	    printf("\n\nError: Only Float image is valid\n\n");
+	    exit(EXIT_FAILURE);
+	  }
     }
-  else
+
+  /* Image doesn't exist, blank mask will be created. */
+  else 
     {
-      img=calloc(p->s0*p->s1, sizeof(float));
-      assert(img!=NULL);
-      p->maskvalue=1;
+      if(p->s0==0 || p->s1==0)
+	{
+	  printf("\n\nError. When no image is defined,\n"
+		 "or can't be read, both size parameters (-x & -y)\n" 
+		 "have to be set:\n");
+	  if(p->s0==0) printf("-y has not been set.\n");
+	  if(p->s1==0) printf("-x has not been set.\n");
+	  printf("\n\n");
+	  exit(EXIT_FAILURE);
+	}
+      img=NULL;
+      p->blankmask=1; /* Just incase the user forgot to ask. */
     }
 
   p->img=img;
@@ -263,95 +342,29 @@ readmakeinputimage(struct elmaskparams *p, struct uiparams *up)
 /****************************************************************
  *****************        Read options:      ********************
  ****************************************************************/
-/* Check if the two size paramters are positive. */
+/* Set the default values for the inputs. */
 void
-checksize(char *optarg, size_t *var, int opt)
+setdefaultoptions(struct elmaskparams *p, struct uiparams *up)
 {
-  long tmp;
-  char *tailptr;
-  tmp=strtol(optarg, &tailptr, 0);
-  if(tmp<=0)
-    {
-      printf("\n\n Error: argument to -%c ", opt); 
-      printf("should be positive\n\n");
-      exit(EXIT_FAILURE);
-    }
-  *var=tmp;  
-}
+  /* Options for ellipticalmask.c */
+  p->reportsky     = 0;
+  p->blankmask     = 0;
+  p->img           = NULL;
+  p->intable       = NULL;
+  p->numellip      = 0;
+  p->outname       = "masked.fits";
+  p->s0            = 0;
+  p->s1            = 0;
 
-
-
-
-
-void
-printversioninfo()
-{
-  printf("\n\nEllipticalMask %.1f\n", ELMASKVERSION);
-  printf("============\n");
-  printf("Make any number of elliptical masks on an image.\n");
-  printf("\nCopyright (C) 2014  Mohammad Akhlaghi\n");
-  printf("This program comes with ABSOLUTELY NO WARRANTY.\n");
-  printf("This is free software, and you are welcome to\n");
-  printf("modify and redistribute it under the\n");
-  printf("GNU Public License v3 or later.\n\n\n");
-}
-
-
-
-
-/* Print the help menu. */
-void
-printhelp(struct elmaskparams *p, struct uiparams *up)
-{
-  printversioninfo();
-
-  printf("\n\n###### Options that won't run EllipticalMask\n");
-  printf(" -h:\n\tPrint this help message.\n\n");
-  printf(" -v:\n\tPrint version and copyright information.\n\n\n");
-
-  printf("\n\n###### Options with no arguments:\n");
-  printf(" -z:\n\tOnly use the image size, mask an empty image\n\n");
-
-  printf("\n\n###### Options with arguments:\n");
-  printf(" -x INTEGER:\n\tThe NAXIS0 size of the ");
-  printf("output FITS image.\n");
-  printf("\tIf -I (input FITS) is given, this is ignored.\n");
-  printf("\tdefault: %lu pixels\n\n", p->s1);
-
-  printf(" -y INTEGER:\n\tThe NAXIS1 size of the ");
-  printf("output FITS image.\n");
-  printf("\tIf -I (input FITS) is given, this is ignored.\n");
-  printf("\tdefault: %lu pixels\n\n", p->s0);
-
-  printf(" -i FILENAME:\n\tInput ASCII table.\n");
-  printf("\tNo default. Must be provided.\n\n");
-
-  printf(" -I FILENAME:\n\tInput FITS name.\n");
-  printf("\tIf not provided, a blank (all zero) image is made.\n\n");
-
-  printf(" -o FILENAME:\n\tOutput FITS image name.\n");
-  printf("\tdefault: '%s'\n\n", p->outname);
-
-  printf("\n\n----- Input table column info (count from one):\n");
-  printf(" -a INTEGER:\n\tX position (FITS standard) column.\n");
-  printf("\tdefault: '%lu'\n\n", up->x_col);
-
-  printf(" -b INTEGER:\n\tY position (FITS standard) column.\n");
-  printf("\tdefault: '%lu'\n\n", up->y_col);
-
-  printf(" -c INTEGER:\n\tPosition angle (in degrees) column.\n");
-  printf("\tdefault: '%lu'\n\n", up->pa_col);
-
-  printf(" -d INTEGER:\n\tMajor axis column.\n");
-  printf("\tdefault: '%lu'\n\n", up->a_col);
-
-  printf(" -e INTEGER:\n\tMinor axis column column.\n");
-  printf("\tdefault: '%lu'\n\n", up->b_col);
-
-  printf(" -f INTEGER:\n\tMajor axis multiple column.\n");
-  printf("\tdefault: '%lu'\n\n", up->multip_col);
-
-  exit(0);
+  /* Internal options for ui.c */
+  up->intablename   = "";
+  up->infitsname    = "";
+  up->x_col         = 2;
+  up->y_col         = 3;
+  up->pa_col        = 4;
+  up->a_col         = 5;
+  up->b_col         = 6;
+  up->multip_col    = 7;
 }
 
 
@@ -368,20 +381,26 @@ getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
 
   setdefaultoptions(p, &up);
 
-  while( (c=getopt(argc, argv, "vhzx:y:i:I:a:b:c:d:e:f:")) 
-	 != -1 )
+  while( (c=getopt(argc, argv, "vhzsx:y:i:I:a:b:c:d:e:f:")) != -1 )
     switch(c)
       {
-	/* Options with no arguments: */
+	/* Information options (won't run program) */
       case 'v':			/* Print version and copyright. */
 	printversioninfo();
 	exit(EXIT_FAILURE);
       case 'h':			/* Print help. */
 	printhelp(p, &up);
 	exit(EXIT_FAILURE);
-      case 'z':			/* Print help. */
-	up.onlyimagesize=1;
+
+
+	/* Options with no arguments: */
+      case 'z':			/* Print blank mask */
+	p->blankmask=1;
 	break;
+      case 's':			/* Print sky and sky std. */
+	p->reportsky=1;
+	break;
+
 
 	/* Options with argument: */
       case 'x':			/* NAXIS1 value of output image. */
@@ -423,7 +442,7 @@ getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
       default:
 	abort();
       }
-  
+
   /* Read the input table specifying the elliptical parameters. */
   readinputinfo(p, &up);
   makeelparamstable(p, &up);

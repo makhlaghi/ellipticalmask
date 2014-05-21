@@ -26,6 +26,7 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 
 #include "sll.h"
 #include "pix.h"
+#include "stats.h"
 #include "raddist.h"
 #include "arraymanip.h"
 #include "fitsarrayvv.h"
@@ -131,14 +132,13 @@ findstartingpixel(size_t s0, size_t s1, float truncr,
    makeprofile() in src/mock.c and documentation for a very detailed
    review of how this function works.*/
 int
-makeellipse(float *img, size_t *ngbs, size_t s0, size_t s1, 
-	    float x_c, float y_c, float pa_d, float q, 
-	    float truncr, float maskvalue)
+makemask(unsigned char *mask, size_t *ngbs, size_t s0, size_t s1, 
+	 float x_c, float y_c, float pa_d, float q, float truncr)
 {
   float r;
+  size_t ngbi, p;
   struct elraddistp e;
   struct ssll *Q=NULL;
-  size_t numngb, nrow, p;
   
   e.q=q;
   e.t=M_PI*pa_d/180;
@@ -158,16 +158,16 @@ makeellipse(float *img, size_t *ngbs, size_t s0, size_t s1,
       r=elraddist(&e, p/s1, p%s1);
       if(r>truncr) continue;
       
-      img[p]=maskvalue; 
+      mask[p]=1; 
 
       /*array_to_fits("tmp2.fits", NULL, "", FLOAT_IMG, img, s0, s1);*/
 
-      nrow=p*NGBSCOLS;
-      numngb=ngbs[nrow];/* Check only 4 connected neighbors */
+      /* 4-connected neighbors are enough. */
+      ngbi=p*NGBSCOLS+ngbs[p*NGBSCOLS];
       do
-	if(img[ p=ngbs[nrow+numngb] ]!=maskvalue)
+	if(mask[ p=ngbs[ngbi] ]==0)
 	  add_to_ssll(&Q, p);
-      while(ngbs[nrow+ ++numngb]!=NONINDEX);
+      while(ngbs[++ngbi]!=NONINDEX);
     }
 
   return 1;
@@ -180,20 +180,39 @@ void
 ellipmask(struct elmaskparams *p)
 {
   double *t;
-  size_t i, nc, *ngbs;
+  unsigned char *mask;
+  size_t i, nc, size, *ngbs;
+  float sky, skystd, maskvalue;
+
+  size=p->s0*p->s1;
+  assert( ( mask=calloc(size, sizeof *mask) )!=NULL  );
   imgngbs(p->s0, p->s1, &ngbs);
 
   t=p->intable;
   nc=ELTABLENUMCOLS;
 
   for(i=0;i<p->numellip;i++)
-    makeellipse(p->img, ngbs, p->s0, p->s1, 
-		t[i*nc+XCOL], t[i*nc+YCOL],
-		90-t[i*nc+PACOL], t[i*nc+QCOL],
-		t[i*nc+TRUNCCOL], p->maskvalue);
- 
-  array_to_fits(p->outname, NULL, "MASKED", FLOAT_IMG, p->img, 
-		p->s0, p->s1);
+    makemask(mask, ngbs, p->s0, p->s1, t[i*nc+XCOL], t[i*nc+YCOL],
+	     90-t[i*nc+PACOL], t[i*nc+QCOL], t[i*nc+TRUNCCOL]);
+  
+  if(p->blankmask)
+    array_to_fits(p->outname, NULL, "MASKED", BYTE_IMG, mask, 
+		  p->s0, p->s1);
+  else
+    {
+      if(p->reportsky)
+	{
+	  favestd(p->img, size, &sky, &skystd, mask);
+	  printf("\nUndetected regions: average: %f, std: %f\n", 
+		 sky, skystd);
+	}
+      floatmin(p->img, size, &maskvalue);
+      maskvalue-=1;
+      maskfloat(p->img, mask, size, maskvalue);
+      array_to_fits(p->outname, NULL, "MASKED", FLOAT_IMG, p->img, 
+		    p->s0, p->s1);
+    }
 
   free(ngbs);
+  free(mask);
 }

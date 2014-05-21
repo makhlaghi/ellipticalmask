@@ -34,7 +34,8 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 
 struct elmaskparams
 {
-  int         verb;		/* Verbatim mode. */
+  int    blankmask;		/* Only make a blank mask. */
+  int    reportsky;		/* 1: Report sky, 0: Don't. */
   float       *img;		/* Float array of image. */
   size_t        s0;		/* Image zeroth axis (in C). */
   size_t        s1;		/* Image first axis (in C). */

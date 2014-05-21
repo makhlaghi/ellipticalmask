@@ -18,24 +18,17 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
-
 **********************************************************************/
+#ifndef STATS_H
+#define STATS_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#define MAXFD 1e30
 
-#include "ellipticalmask.h"
-#include "ui.h"
+void
+favestd(float *in, size_t size, float *ave, float *std, 
+	unsigned char *mask);
 
-int
-main(int argc, char *argv[])
-{
-  struct elmaskparams p;
-  getsaveoptions(&p, argc, argv);
+void
+floatmin(float *in, size_t size, float *min);
 
-  ellipmask(&p);
-
-  free(p.intable);
-  if(p.img) free(p.img);
-  return 0;
-}
+#endif
