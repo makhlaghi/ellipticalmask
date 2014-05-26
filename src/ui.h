@@ -26,6 +26,7 @@ struct uiparams
 {
   char *infitsname;	       /* Input FITS image name.            */
   char *intablename;	       /* Input ASCII table.                */
+  size_t inexten;	       /* Extention of input FITS image.    */
   size_t intable_s1;	       /* Number of columns in input table. */
   double *intable;	       /* Input table read into an array.   */
   size_t x_col;		       /* Input ellipse X (FITS) col.       */

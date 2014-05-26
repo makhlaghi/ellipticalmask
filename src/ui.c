@@ -95,6 +95,9 @@ printhelp(struct elmaskparams *p, struct uiparams *up)
   printf(" -I FILENAME:\n\tInput FITS name.\n");
   printf("\tIf not provided, a blank (all zero) image is made.\n\n");
 
+  printf(" -t INTEGER:\n\tInput FITS extention.\n");
+  printf("\tDefault: %lu\n\n", up->inexten);
+
   printf(" -o FILENAME:\n\tOutput FITS image name.\n");
   printf("\tdefault: '%s'\n\n", p->outname);
 
@@ -289,7 +292,7 @@ readmakeinputimage(struct elmaskparams *p, struct uiparams *up)
   if ((tmpfile = fopen(up->infitsname, "r")) != NULL) 
     {
       fclose(tmpfile);
-      fits_to_array(up->infitsname, 0, &bitpix, &img, &p->s0, &p->s1);
+      fits_to_array(up->infitsname, up->inexten, &bitpix, &img, &p->s0, &p->s1);
       if(p->blankmask)
 	{
 	  free(img);
@@ -362,6 +365,7 @@ setdefaultoptions(struct elmaskparams *p, struct uiparams *up)
   /* Internal options for ui.c */
   up->intablename   = "";
   up->infitsname    = "";
+  up->inexten       = 0;
   up->x_col         = 2;
   up->y_col         = 3;
   up->pa_col        = 4;
@@ -384,7 +388,7 @@ getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
 
   setdefaultoptions(p, &up);
 
-  while( (c=getopt(argc, argv, "vhzsrx:y:i:I:o:a:b:c:d:e:f:")) != -1 )
+  while( (c=getopt(argc, argv, "vhzsrx:y:i:I:t:o:a:b:c:d:e:f:")) != -1 )
     switch(c)
       {
 	/* Information options (won't run program) */
@@ -420,6 +424,9 @@ getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
 	break;
       case 'I':			/* Input FITS name. */
 	up.infitsname=optarg;
+	break;
+      case 't':
+	up.inexten=strtol(optarg, &tailptr, 0);
 	break;
       case 'o': 		/* Output fits name. */
 	p->outname=optarg;
