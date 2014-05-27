@@ -283,7 +283,7 @@ makeborder(unsigned char *mask, size_t *filledindexs, size_t *ngbs,
 void
 ellipmask(struct elmaskparams *p)
 {
-  double *t;
+  double *t, sumin=0;
   size_t *filledindexs=NULL;
   unsigned char *mask;
   float sky, skystd, maskvalue;
@@ -316,6 +316,10 @@ ellipmask(struct elmaskparams *p)
     {
       if(p->reportsky)
 	{
+	  for(i=0;i<size;i++)
+	    if(mask[i]==1) sumin+=p->img[i];
+	  printf("\n\nTotal flux in masked regions: %f\n", sumin);
+	  
 	  favestd(p->img, size, &sky, &skystd, &unmaskedsize, mask);
 	  printf("\nStatistics of unmasked regions:\n"
 		 "\t%lu pixels of %lu pixels in whole image.\n" 
