@@ -283,11 +283,11 @@ makeborder(unsigned char *mask, size_t *filledindexs, size_t *ngbs,
 void
 ellipmask(struct elmaskparams *p)
 {
-  double *t, sumin=0;
-  size_t *filledindexs=NULL;
+  double *t;
+  float maskvalue;
   unsigned char *mask;
-  float sky, skystd, maskvalue;
-  size_t i, nc, size, *ngbs, unmaskedsize;
+  size_t *filledindexs=NULL;
+  size_t i, nc, size, *ngbs;
 
   size=p->s0*p->s1;
   assert( ( mask=calloc(size, sizeof *mask) )!=NULL  );
@@ -295,6 +295,8 @@ ellipmask(struct elmaskparams *p)
 
   t=p->intable;
   nc=ELTABLENUMCOLS;
+
+
 
   if(p->onlycircum)
     {
@@ -310,28 +312,15 @@ ellipmask(struct elmaskparams *p)
 		 90-t[i*nc+PACOL], t[i*nc+QCOL], t[i*nc+TRUNCCOL]);
   
   if(p->blankmask)
-    array_to_fits(p->outname, NULL, "MASKED", BYTE_IMG, mask, 
+    array_to_fits(p->maskname, NULL, "MASKED", BYTE_IMG, mask, 
 		  p->s0, p->s1);
   else
     {
-      if(p->reportsky)
-	{
-	  for(i=0;i<size;i++)
-	    if(mask[i]==1) sumin+=p->img[i];
-	  printf("\n\nTotal flux in masked regions: %f\n", sumin);
-	  
-	  favestd(p->img, size, &sky, &skystd, &unmaskedsize, mask);
-	  printf("\nStatistics of unmasked regions:\n"
-		 "\t%lu pixels of %lu pixels in whole image.\n" 
-		 "\tAverage           : %f\n"
-		 "\tstandard deviation: %f\n", 
-		 unmaskedsize, size, sky, skystd);
-	}
       floatmin(p->img, size, &maskvalue);
-      maskvalue-=1;
-      
+      maskvalue-=0.1f*maskvalue;
+    
       maskfloat(p->img, mask, size, maskvalue);
-      array_to_fits(p->outname, NULL, "MASKED", FLOAT_IMG, p->img, 
+      array_to_fits(p->maskname, NULL, "MASKED", FLOAT_IMG, p->img, 
 		    p->s0, p->s1);
     }
 

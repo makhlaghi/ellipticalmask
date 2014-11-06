@@ -27,111 +27,13 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 #include <unistd.h>
 
 #include "main.h"
+#include "config.h"
 #include "attaavv.h"
 #include "fitsarrayvv.h"
 #include "ellipticalmask.h"
 
 #include "ui.h"			/* Needs ellipticalmask.h */
-
-
-
-
-/****************************************************************
- *****************          Print info         ******************
- ****************************************************************/
-void
-printversioninfo()
-{
-  printf("\n\nEllipticalMask %.1f\n", ELMASKVERSION);
-  printf("============\n");
-  printf("Make any number of elliptical masks on an image.\n");
-  printf("\nCopyright (C) 2014  Mohammad Akhlaghi\n");
-  printf("This program comes with ABSOLUTELY NO WARRANTY.\n");
-  printf("This is free software, and you are welcome to\n");
-  printf("modify and redistribute it under the\n");
-  printf("GNU Public License v3 or later.\n\n\n");
-}
-
-
-
-
-
-/* Print the help menu. */
-void
-printhelp(struct elmaskparams *p, struct uiparams *up)
-{
-  printversioninfo();
-
-  printf("\n\n###### Options that won't run EllipticalMask\n");
-  printf(" -h:\n\tPrint this help message.\n\n");
-  printf(" -v:\n\tPrint version and copyright information.\n\n\n");
-
-
-
-  printf("\n\n###### Options with no arguments:\n");
-  printf(" -z:\n\tOnly use the image size, mask an empty image.\n\n");
-
-  printf(" -s:\n\tReport average and standard deviation\n");
-  printf("\tof un-masked regions.\n\n");
-
-  printf(" -r:\n\tOnly mask the circumference of the ellipse.\n\n");
-
-
-
-  printf("\n\n###### Options with arguments:\n");
-  printf(" -x INTEGER:\n\tThe NAXIS0 size of the ");
-  printf("output FITS image.\n");
-  printf("\tIf -I (input FITS) is given, this is ignored.\n");
-  printf("\tdefault: %lu pixels\n\n", p->s1);
-
-  printf(" -y INTEGER:\n\tThe NAXIS1 size of the ");
-  printf("output FITS image.\n");
-  printf("\tIf -I (input FITS) is given, this is ignored.\n");
-  printf("\tdefault: %lu pixels\n\n", p->s0);
-
-  printf(" -i FILENAME:\n\tInput ASCII table.\n");
-  printf("\tNo default. Must be provided.\n\n");
-
-  printf(" -I FILENAME:\n\tInput FITS name.\n");
-  printf("\tIf not provided, a blank (all zero) image is made.\n\n");
-
-  printf(" -t INTEGER:\n\tInput FITS extention.\n");
-  printf("\tDefault: %lu\n\n", up->inexten);
-
-  printf(" -o FILENAME:\n\tOutput FITS image name.\n");
-  printf("\tdefault: '%s'\n\n", p->outname);
-
-  printf("\n\n----- Input table column info (count from one):\n");
-  printf(" -a INTEGER:\n\tX position (FITS standard) column.\n");
-  printf("\tdefault: '%lu'\n\n", up->x_col);
-
-  printf(" -b INTEGER:\n\tY position (FITS standard) column.\n");
-  printf("\tdefault: '%lu'\n\n", up->y_col);
-
-  printf(" -c INTEGER:\n\tPosition angle (in degrees) column.\n");
-  printf("\tdefault: '%lu'\n\n", up->pa_col);
-
-  printf(" -d INTEGER:\n\tMajor axis column.\n");
-  printf("\tdefault: '%lu'\n\n", up->a_col);
-
-  printf(" -e INTEGER:\n\tMinor axis column column.\n");
-  printf("\tdefault: '%lu'\n\n", up->b_col);
-
-  printf(" -f INTEGER:\n\tMajor axis multiple column.\n");
-  printf("\tdefault: '%lu'\n\n", up->multip_col);
-
-  exit(0);
-}
-
-
-
-
-
-
-
-
-
-
+#include "argpparser.h"         /* Needs ellipticalmask.h */
 
 
 
@@ -145,17 +47,22 @@ printhelp(struct elmaskparams *p, struct uiparams *up)
 /****************************************************************
  ***************        Prepare parameters        ***************
  ****************************************************************/
-/* Check if the two size paramters are positive. */
 void
-checksize(char *optarg, size_t *var, int opt)
+intelzero(char *optarg, int *var, char *lo, char so)
 {
   long tmp;
   char *tailptr;
   tmp=strtol(optarg, &tailptr, 0);
-  if(tmp<=0)
+  if(strlen(tailptr))
     {
-      printf("\n\n Error: argument to -%c ", opt); 
-      printf("should be positive\n\n");
+      fprintf(stderr, PACKAGE": the argument to option `-%c`: `%s` was not "
+	     "readable as a number!\n", so, optarg);
+      exit(EXIT_FAILURE);
+    }
+  if(tmp<0)
+    {
+      fprintf(stderr, PACKAGE": argument to `--%s (-%c)` should be >=0, "
+	     "it is: %ld\n", lo, so, tmp);
       exit(EXIT_FAILURE);
     }
   *var=tmp;  
@@ -165,56 +72,103 @@ checksize(char *optarg, size_t *var, int opt)
 
 
 
+void
+sizetelzero(char *optarg, size_t *var, char *lo, char so)
+{
+  long tmp;
+  char *tailptr;
+  tmp=strtol(optarg, &tailptr, 0);
+  if(strlen(tailptr))
+    {
+      fprintf(stderr, PACKAGE": the argument to option `-%c`: `%s` was not "
+	     "readable as a number!\n", so, optarg);
+      exit(EXIT_FAILURE);
+    }
+  if(tmp<0)
+    {
+      fprintf(stderr, PACKAGE": argument to `--%s (-%c)` should be >=0, it "
+	     "is: %ld\n", lo, so, tmp);
+      exit(EXIT_FAILURE);
+    }
+  *var=tmp;  
+}
+
+
+
+
 /* If the input table exists, read it and put its pointer into the
    input structure. If it doesn't exist, then raise an error and
    abort */
+#define FIXEDSTATEMENT " larger than max column index (%lu)\n"
 void
-readinputinfo(struct elmaskparams *p, struct uiparams *up)
+readcat(struct elmaskparams *p)
 {
   int abort=0;
   FILE *tmpfile;
   struct ArrayInfo intable;
+  struct uiparams *up=&p->up;
 
-  if ((tmpfile = fopen(up->intablename, "r")) != NULL) 
+  if ((tmpfile = fopen(up->imgname, "r")) != NULL) 
     {
+      /* Read the input catalog and save it in the intable structure. */
       fclose(tmpfile);
-      readasciitable(up->intablename, &intable);
+      readasciitable(up->catname, &intable);
 
-      /* Check the columns to see if they are all inside the width. */
-      if(up->x_col>=intable.s1)
-	{printf("X column(%lu) larger than number of columns (%lu)\n",
-		up->x_col+1, intable.s1); abort=1;}
-      if(up->y_col>=intable.s1)
-	{printf("Y column(%lu) larger than number of columns (%lu)\n",
-		up->y_col+1, intable.s1); abort=1;}
-      if(up->pa_col>=intable.s1)
-	{printf("PA column(%lu) larger than number of columns (%lu)\n",
-		up->pa_col+1, intable.s1); abort=1;}
-      if(up->a_col>=intable.s1)
-	{printf("A column (%lu) larger than number of columns (%lu)\n",
-		up->a_col+1, intable.s1); abort=1;}
-      if(up->b_col>=intable.s1)
-	{printf("B column (%lu) larger than number of columns (%lu)\n",
-		up->b_col+1, intable.s1); abort=1;}
-      if(up->multip_col>=intable.s1)
-	{printf("M column (%lu) larger than number of columns (%lu)\n",
-		up->multip_col+1, intable.s1); abort=1;}
-      if(abort)	  exit(EXIT_FAILURE);
+      /* Check the column indexs to see if they all fit the catalog. */
+      if(up->xcol>intable.s1-1)
+	{
+	  fprintf(stderr, PACKAGE": X column(%lu)"FIXEDSTATEMENT,
+		 up->xcol, intable.s1-1);
+	  abort=1;
+	}
+      if(up->ycol>=intable.s1-1)
+	{
+	  fprintf(stderr, PACKAGE": Y column(%lu)"FIXEDSTATEMENT,
+		  up->ycol, intable.s1-1);
+	  abort=1;
+	}
+      if(up->pacol>=intable.s1-1)
+	{
+	  fprintf(stderr, PACKAGE": PA column(%lu)"FIXEDSTATEMENT,
+		  up->pacol, intable.s1-1);
+	  abort=1;
+	}
+      if(up->mjcol>=intable.s1-1)
+	{
+	  fprintf(stderr, PACKAGE": Major axis column(%lu)"FIXEDSTATEMENT,
+		  up->mjcol, intable.s1-1);
+	  abort=1;
+	}
+      if(up->micol>=intable.s1-1)
+	{
+	  fprintf(stderr, PACKAGE": Minor axis column(%lu)"FIXEDSTATEMENT,
+		  up->micol, intable.s1-1);
+	  abort=1;
+	}
+      if(up->multip && up->multipcol>=intable.s1-1)
+	{
+	  fprintf(stderr, PACKAGE": Multiple column(%lu)"FIXEDSTATEMENT,
+		  up->multipcol, intable.s1-1);
+	  abort=1;
+	}
+      if(abort)
+	exit(EXIT_FAILURE);
 
+      /* Read the necessary information from intable: */
+      up->cat=intable.d;
+      up->cat_s1=intable.s1;
       p->numellip=intable.s0;
-      up->intable_s1=intable.s1;
 
-      up->intable=intable.d;
-      intable.d=malloc(sizeof *(intable.d));/*freeasciitable() has */
-      assert(intable.d!=NULL);		    /*something to free!   */
-
+      /* Free the intable structure. I am allocating something here so
+	 freeasciitable() has something to free! */
+      intable.d=malloc(sizeof *(intable.d));
+      assert(intable.d!=NULL);		    
       freeasciitable(&intable);
     }
   else 
     {
-      fprintf(stderr, "\n\n\tERROR: Can't read input table %s.\n", 
-	      up->intablename);
-      fprintf(stderr, "\t\tAborted\n\n");
+      fprintf(stderr, PACKAGE": Can't read input table %s.\n", 
+	      up->catname);
       exit(EXIT_FAILURE);
     }
 }
@@ -224,32 +178,28 @@ readinputinfo(struct elmaskparams *p, struct uiparams *up)
 
 
 void
-makeelparamstable(struct elmaskparams *p, struct uiparams *up)
+makeelparamstable(struct elmaskparams *p)
 {
-  double *itable, *ftable;
-  size_t i, numrows, icols;
-  size_t x_col, y_col, pa_col, a_col, b_col, multip_col;
-
-  itable=up->intable;
+  int multip=p->up.multip;
+  struct uiparams *up=&p->up;
+  double *itable=up->cat, *ftable=NULL;
+  size_t i, numrows=p->numellip, icols=up->cat_s1;
+  
   ftable=malloc(ELTABLENUMCOLS*p->numellip*sizeof *ftable);
   assert(ftable!=NULL);
 
-  /* To make things clean in the loop and convert to counting from
-     zero. */
-  numrows=p->numellip;           icols=up->intable_s1;
-  x_col=up->x_col-1;             y_col=up->y_col-1;      
-  a_col=up->a_col-1;             b_col=up->b_col-1;
-  multip_col=up->multip_col-1;   pa_col=up->pa_col-1;
-
   for(i=0;i<numrows;i++)
     {
-      ftable[i*ELTABLENUMCOLS+XCOL]=itable[i*icols+y_col]-1;
-      ftable[i*ELTABLENUMCOLS+YCOL]=itable[i*icols+x_col]-1;
-      ftable[i*ELTABLENUMCOLS+PACOL]=itable[i*icols+pa_col];
+      ftable[i*ELTABLENUMCOLS+XCOL]=itable[i*icols+up->xcol]-1;
+      ftable[i*ELTABLENUMCOLS+YCOL]=itable[i*icols+up->ycol]-1;
+      ftable[i*ELTABLENUMCOLS+PACOL]=itable[i*icols+up->pacol];
       ftable[i*ELTABLENUMCOLS+QCOL]=
-	itable[i*icols+b_col]/itable[i*icols+a_col];
-      ftable[i*ELTABLENUMCOLS+TRUNCCOL]=
-	itable[i*icols+a_col]*itable[i*icols+multip_col];
+	itable[i*icols+up->micol]/itable[i*icols+up->mjcol];
+      if(multip)
+	ftable[i*ELTABLENUMCOLS+TRUNCCOL]=
+	  itable[i*icols+up->mjcol]*itable[i*icols+up->multipcol];
+      else
+	ftable[i*ELTABLENUMCOLS+TRUNCCOL]=itable[i*icols+up->mjcol];
     }
 
   p->intable=ftable;
@@ -282,41 +232,57 @@ checkremoveoutimage(char *outname)
 
 
 void
-readmakeinputimage(struct elmaskparams *p, struct uiparams *up)
+readmakeinputimage(struct elmaskparams *p)
 {
   void *img;
   int bitpix;
   FILE *tmpfile;
+  struct uiparams *up=&p->up;
 
   /* Image exists and is read: */
-  if ((tmpfile = fopen(up->infitsname, "r")) != NULL) 
+  if(up->imgname)
     {
-      fclose(tmpfile);
-      fits_to_array(up->infitsname, up->inexten, &bitpix, &img, &p->s0, &p->s1);
-      if(p->blankmask)
+      if(p->s0 || p->s1)
+	fprintf(stderr, PACKAGE": An input image (%s) and at least on of "
+		"`--naxis0` and `--naxis1` are also specified! The image "
+		"size will take precedence.\n", up->imgname);
+      
+      if ((tmpfile = fopen(up->imgname, "r")) != NULL) 
 	{
-	  free(img);
-	  img=NULL;
+	  fclose(tmpfile);
+	  fits_to_array(up->imgname, up->imgext, &bitpix, &img,
+			&p->s0, &p->s1);
+	  if(up->tmpblankmask)
+	    {
+	      p->blankmask=1;
+	      free(img);
+	      img=NULL;	      
+	    }
+	  else
+	    if(bitpix!=FLOAT_IMG)
+	      {
+		fprintf(stderr, PACKAGE": Currently only float image "
+			"is valid\n");
+		exit(EXIT_FAILURE);
+	      }
 	}
       else
-	if(bitpix!=FLOAT_IMG)
-	  {
-	    printf("\n\nError: Only Float image is valid\n\n");
-	    exit(EXIT_FAILURE);
-	  }
+	{
+	  fprintf(stderr, PACKAGE": %s could not be opened.\n",
+		  up->imgname);
+	  exit(EXIT_FAILURE);
+	}
     }
-
-  /* Image doesn't exist, blank mask will be created. */
+  /* No input image specified. */
   else 
     {
       if(p->s0==0 || p->s1==0)
 	{
-	  printf("\n\nError. When no image is defined,\n"
-		 "or can't be read, both size parameters (-x & -y)\n" 
+	  fprintf(stderr, PACKAGE": When no image is defined,\n"
+		 "both size parameters (--naxis0 & --naxis1)\n" 
 		 "have to be set:\n");
 	  if(p->s0==0) printf("-y has not been set.\n");
 	  if(p->s1==0) printf("-x has not been set.\n");
-	  printf("\n\n");
 	  exit(EXIT_FAILURE);
 	}
       img=NULL;
@@ -345,122 +311,47 @@ readmakeinputimage(struct elmaskparams *p, struct uiparams *up)
 
 
 /****************************************************************
- *****************        Read options:      ********************
+ *************      Read the parameters:      *******************
  ****************************************************************/
-/* Set the default values for the inputs. */
-void
-setdefaultoptions(struct elmaskparams *p, struct uiparams *up)
-{
-  /* Options for ellipticalmask.c */
-  p->reportsky     = 0;
-  p->blankmask     = 0;
-  p->onlycircum    = 0;
-  p->img           = NULL;
-  p->intable       = NULL;
-  p->numellip      = 0;
-  p->outname       = "masked.fits";
-  p->s0            = 0;
-  p->s1            = 0;
-
-  /* Internal options for ui.c */
-  up->intablename   = "";
-  up->infitsname    = "";
-  up->inexten       = 0;
-  up->x_col         = 2;
-  up->y_col         = 3;
-  up->pa_col        = 4;
-  up->a_col         = 5;
-  up->b_col         = 6;
-  up->multip_col    = 7;
-}
-
-
-
-
-
 /* Read all the options into the program */
 void
-getsaveoptions(struct elmaskparams *p, int argc, char *argv[])
+setparams(struct elmaskparams *p, int argc, char *argv[])
 {
-  int c;
-  char *tailptr; 
-  struct uiparams up;
+  struct uiparams *up=&p->up;
 
-  setdefaultoptions(p, &up);
+  /* Set the default `up` parameters: */
+  up->imgname       = NULL;
+  up->catname       = NULL;
+  up->imgext        = DP_IMGEXT_V;
+  up->cat_s1        = 0;
+  up->cat           = NULL;
+  up->multip        = 1;
+  up->xcol          = DP_YCOL_V;
+  up->ycol          = DP_XCOL_V;
+  up->pacol         = DP_PACOL_V;
+  up->mjcol         = DP_MJCOL_V;
+  up->micol         = DP_MICOL_V;
+  up->multipcol     = DP_MULTIPCOL_V;
+  up->tmpblankmask  = 0;
+  
+  /* Set the default `elmaskparams` parameters: */
+  p->verb           = 1;
+  p->blankmask      = 0;
+  p->onlycircum     = 0;
+  p->img            = NULL;
+  p->s0             = DP_NAXIS1_V;
+  p->s1             = DP_NAXIS0_V;
+  p->intable        = NULL;
+  p->numellip       = 0;
+  p->maskname       = DP_MASKNAME;
 
-  while( (c=getopt(argc, argv, "vhzsrx:y:i:I:t:o:a:b:c:d:e:f:")) != -1 )
-    switch(c)
-      {
-	/* Information options (won't run program) */
-      case 'v':			/* Print version and copyright. */
-	printversioninfo();
-	exit(EXIT_FAILURE);
-      case 'h':			/* Print help. */
-	printhelp(p, &up);
-	exit(EXIT_FAILURE);
+  /* Read the command line parameters: */
+  argp_parse(&argp, argc, argv, 0, 0, p);
 
-
-	/* Options with no arguments: */
-      case 'z':			/* Print blank mask */
-	p->blankmask=1;
-	break;
-      case 's':			/* Print sky and sky std. */
-	p->reportsky=1;
-	break;
-      case 'r':			/* Print the circumference */
-	p->onlycircum=1;
-	break;
-
-
-	/* Options with argument: */
-      case 'x':			/* NAXIS1 value of output image. */
-	checksize(optarg, &p->s1, c);
-	break;
-      case 'y':			/* NAXIS2 value of output image. */
-	checksize(optarg, &p->s0, c);
-	break;
-      case 'i':			/* Input table. */
-	up.intablename=optarg;
-	break;
-      case 'I':			/* Input FITS name. */
-	up.infitsname=optarg;
-	break;
-      case 't':
-	up.inexten=strtol(optarg, &tailptr, 0);
-	break;
-      case 'o': 		/* Output fits name. */
-	p->outname=optarg;
-	break;
-      case 'a':
-	up.x_col=strtol(optarg, &tailptr, 0);
-	break;
-      case 'b':
-	up.y_col=strtol(optarg, &tailptr, 0);
-	break;
-      case 'c':
-	up.pa_col=strtol(optarg, &tailptr, 0);
-	break;
-      case 'd':
-	up.a_col=strtol(optarg, &tailptr, 0);
-	break;
-      case 'e':
-	up.b_col=strtol(optarg, &tailptr, 0);
-	break;
-      case 'f':
-	up.multip_col=strtol(optarg, &tailptr, 0);
-	break;
-      case '?':
-	fprintf(stderr, "Unknown option: '-%c'.\n\n", optopt);
-	exit(EXIT_FAILURE);
-      default:
-	abort();
-      }
-
-  /* Read the input table specifying the elliptical parameters. */
-  readinputinfo(p, &up);
-  makeelparamstable(p, &up);
-  checkremoveoutimage(p->outname);
-  readmakeinputimage(p, &up);
-
-  free(up.intable);
+  /* Do all the readings and checkings: */
+  readcat(p);
+  makeelparamstable(p);
+  checkremoveoutimage(p->maskname);
+  readmakeinputimage(p);
+  free(up->cat);
 }

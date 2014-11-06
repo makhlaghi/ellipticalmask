@@ -22,23 +22,13 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 #ifndef UI_H
 #define UI_H
 
-struct uiparams
-{
-  char *infitsname;	       /* Input FITS image name.            */
-  char *intablename;	       /* Input ASCII table.                */
-  size_t inexten;	       /* Extention of input FITS image.    */
-  size_t intable_s1;	       /* Number of columns in input table. */
-  double *intable;	       /* Input table read into an array.   */
-  size_t x_col;		       /* Input ellipse X (FITS) col.       */
-  size_t y_col;		       /* Input ellipse Y (FITS) col.       */
-  size_t pa_col;	       /* Input ellipse Position angle col. */
-  size_t a_col;		       /* Input ellipse Major axis col.     */
-  size_t b_col;		       /* Input ellipse Minor axis col.     */
-  size_t multip_col;	       /* Multiplication factor to a and b. */
-};
+void
+intelzero(char *optarg, int *var, char *lo, char so);
 
 void
-getsaveoptions(struct elmaskparams *p, 
-	       int argc, char *argv[]);
+sizetelzero(char *optarg, size_t *var, char *lo, char so);
+
+void
+setparams(struct elmaskparams *p, int argc, char *argv[]);
 
 #endif

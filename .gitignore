@@ -3,4 +3,12 @@
 *.fits
 *.txt
 
+stamp-h1
+config.h
+config.log
+src/.deps/
+config.status
 ellipticalmask
+src/runtest.sh
+autom4te.cache/
+autom4te.cache/

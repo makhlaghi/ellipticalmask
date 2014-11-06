@@ -1,6 +1,5 @@
 /*********************************************************************
-ellipticalmask - Mask (set to minimum image value) pixels within 
-                 an ellipse.
+ellipticalmask - Mask pixels within an ellipse from a catalog.
 
 Copyright (C) 2014 Mohammad Akhlaghi
 Tohoku University Astronomical Institute, Sendai, Japan.
@@ -18,20 +17,21 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
-
 **********************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "ellipticalmask.h"
-#include "ui.h"
+
+#include "ui.h"			/* Needs ellipticalmask.h */
 
 int
 main(int argc, char *argv[])
 {
   struct elmaskparams p;
-  getsaveoptions(&p, argc, argv);
+  
+  setparams(&p, argc, argv);
 
   ellipmask(&p);
 

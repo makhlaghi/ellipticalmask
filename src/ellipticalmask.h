@@ -31,19 +31,36 @@ along with ellipticalmask. If not, see <http://www.gnu.org/licenses/>.
 #define QCOL      3
 #define TRUNCCOL  4
 
+struct uiparams
+{
+  char      *imgname;	       /* Input FITS image name.              */
+  char      *catname;	       /* Input ASCII table.                  */
+  int         imgext;	       /* Extention of input FITS image.      */
+  size_t      cat_s1;	       /* Number of columns in input table.   */
+  double        *cat;	       /* Input table read into an array.     */
+  int         multip;	       /* ==1: there is a multip column.      */
+  size_t        xcol;	       /* Input ellipse X (FITS) col.         */
+  size_t        ycol;	       /* Input ellipse Y (FITS) col.         */
+  size_t       pacol;	       /* Input ellipse Position angle col.   */
+  size_t       mjcol;	       /* Input ellipse Major axis col.       */
+  size_t       micol;          /* Input ellipse Minor axis col.       */
+  size_t   multipcol;	       /* Multiplication factor to a and b.   */
+  int   tmpblankmask;	       /* Temporary value for blankmask.      */
+};
+
 
 struct elmaskparams
 {
-  int    blankmask;		/* Only make a blank mask. */
-  int    reportsky;		/* 1: Report sky, 0: Don't. */
-  int   onlycircum;		/* 1: Only border of ellipse is shown. */
-  float       *img;		/* Float array of image. */
-  size_t        s0;		/* Image zeroth axis (in C). */
-  size_t        s1;		/* Image first axis (in C). */
-  double  *intable;	        /* Table keeping the paramter values. */
-  size_t  numellip;		/* Number of rows in that table */
-  char    *outname;		/* Output fits name. */
-  float  maskvalue;		/* Value to be used as mask. */
+  struct uiparams up;	        /* Input related parameters.           */
+  int           verb;		/* ==1: verbose mode.                  */
+  int      blankmask;		/* Only make a blank mask.             */
+  int     onlycircum;		/* 1: Only border of ellipse is shown. */
+  float         *img;		/* Float array of image.               */
+  size_t          s0;		/* Image zeroth axis (in C).           */
+  size_t          s1;		/* Image first axis (in C).            */
+  double    *intable;	        /* Table keeping the paramter values.  */
+  size_t    numellip;		/* Number of rows in that table        */
+  char     *maskname;		/* Output fits name.                   */
 };
 
 void

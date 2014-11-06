@@ -1,0 +1,24 @@
+# Default values for EllipticalMask. 
+#
+# You can set the default values prior to running `./configure` by
+# editing the values in this file. The names of the parameters are the
+# same as their long option names and should not be altered.
+#
+# Note that since this is a shell script, no space should exist
+# between the option name, the equal sign and the given value.
+
+# Input:
+#-------------------
+naxis0=0
+naxis1=0
+imgext=0
+maskname="masked.fits"
+
+#Catalog columns:
+#-------------------
+xcol=1
+ycol=2
+pacol=3
+mjcol=4
+micol=5
+multipcol=6
