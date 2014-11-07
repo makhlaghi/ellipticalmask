@@ -4333,7 +4333,7 @@ fi
 done
 
 
-for ac_header in stdlib.h string.h unistd.h
+for ac_header in stdlib.h string.h unistd.h argp.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -4628,8 +4628,8 @@ ac_config_files="$ac_config_files Makefile src/Makefile"
 
 
 #Read the configuration date.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for date of compilation" >&5
-$as_echo_n "checking for date of compilation... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for date of configuration" >&5
+$as_echo_n "checking for date of configuration... " >&6; }
 
 cat >>confdefs.h <<_ACEOF
 #define CONFIGDATE "`date +"%d %B %Y"`"
@@ -4643,12 +4643,39 @@ _ACEOF
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: done" >&5
 $as_echo "done" >&6; }
 
-#Read the default values from defaults.sh:
-source $srcdir/defaults.ac
+#Check if `defaults.ac` exists:
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \`defaults.ac\` exists" >&5
+$as_echo_n "checking if \`defaults.ac\` exists... " >&6; }
+if [ -f "$srcdir/defaults.ac" ]; then
+  source $srcdir/defaults.ac
+else
+  printf "\n$srcdir/defaults.ac does not exist!"; exit 1; fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: done" >&5
+$as_echo "done" >&6; }
 
-#Read the rest of the default values:
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking defaults from \`default.ac\`" >&5
-$as_echo_n "checking defaults from \`default.ac\`... " >&6; }
+#Function to check if input is a number:
+checkifnumber()
+{
+  if ! [[ $1 =~ ^-?[0-9]+([.][0-9]+)?$ ]] ; then
+    printf "\n\n\"$1\" in \'defaults.ac\` is not a number.\n"
+    printf "Note: Replace numbers written like \".1\" with \"0.1\".\n\n"
+    exit 1
+  fi
+}
+
+#Read the rest of the default values and check them:
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking default values in \`defaults.ac\`" >&5
+$as_echo_n "checking default values in \`defaults.ac\`... " >&6; }
+
+
+cat >>confdefs.h <<_ACEOF
+#define DP_MASKNAME "$maskname"
+_ACEOF
+
+
+if [ -n "$naxis0" ]; then
+  checkifnumber	$naxis0
+  if [ `echo "$naxis0>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_NAXIS0_T "$naxis0"
@@ -4659,6 +4686,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_NAXIS0_V $naxis0
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, imgext must be >=0.\n\n"; exit 1; fi
+else printf "\n\nimgext not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$naxis1" ]; then
+  checkifnumber	$naxis1
+  if [ `echo "$naxis1>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_NAXIS1_T "$naxis1"
@@ -4669,6 +4703,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_NAXIS1_V $naxis1
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, naxis1 must be >=0.\n\n"; exit 1; fi
+else printf "\n\nnaxis1 not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$imgext" ]; then
+  checkifnumber	$imgext
+  if [ `echo "$imgext>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_IMGEXT_T "$imgext"
@@ -4679,11 +4720,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_IMGEXT_V $imgext
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, imgext must be >=0.\n\n"; exit 1; fi
+else printf "\n\nimgext not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
 
-cat >>confdefs.h <<_ACEOF
-#define DP_MASKNAME "$maskname"
-_ACEOF
-
+if [ -n "$xcol" ]; then
+  checkifnumber	$xcol
+  if [ `echo "$xcol>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_XCOL_T "$xcol"
@@ -4694,6 +4737,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_XCOL_V $xcol
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, xcol must be >=0.\n\n"; exit 1; fi
+else printf "\n\nxcol not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$ycol" ]; then
+  checkifnumber	$ycol
+  if [ `echo "$ycol>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_YCOL_T "$ycol"
@@ -4704,6 +4754,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_YCOL_V $ycol
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, ycol must be >=0.\n\n"; exit 1; fi
+else printf "\n\nycol not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$pacol" ]; then
+  checkifnumber	$pacol
+  if [ `echo "$pacol>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_PACOL_T "$pacol"
@@ -4714,6 +4771,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_PACOL_V $pacol
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, pacol must be >=0.\n\n"; exit 1; fi
+else printf "\n\npacol not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$mjcol" ]; then
+  checkifnumber	$mjcol
+  if [ `echo "$mjcol>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_MJCOL_T "$mjcol"
@@ -4724,6 +4788,13 @@ cat >>confdefs.h <<_ACEOF
 #define DP_MJCOL_V $mjcol
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, mjcol must be >=0.\n\n"; exit 1; fi
+else printf "\n\nmjcol not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$micol" ]; then
+  checkifnumber	$micol
+  if [ `echo "$micol>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
 #define DP_MICOL_T "$micol"
@@ -4734,15 +4805,26 @@ cat >>confdefs.h <<_ACEOF
 #define DP_MICOL_V $micol
 _ACEOF
 
+  else
+    printf "\n\nIn \`defaults.ac\`, micol must be >=0.\n\n"; exit 1; fi
+else printf "\n\nmicol not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
+
+if [ -n "$multipcol" ]; then
+  checkifnumber	$multipcol
+  if [ `echo "$multipcol>=0" | bc` == 1 ]; then
 
 cat >>confdefs.h <<_ACEOF
-#define DP_MULTIPCOL_T "$multipcol"
+#define DP_MULTIPCOL_T "$xcol"
 _ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
-#define DP_MULTIPCOL_V $multipcol
+#define DP_MULTIPCOL_V $xcol
 _ACEOF
+
+  else
+    printf "\n\nIn \`defaults.ac\`, multipcol must be >=0.\n\n"; exit 1; fi
+else printf "\n\nmultipcol not in \`defaults.ac\` or not set.\n\n"; exit 1; fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: done" >&5
 $as_echo "done" >&6; }

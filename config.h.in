@@ -1,9 +1,9 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Date of compilation */
+/* Date of configuration */
 #undef CONFIGDATE
 
-/* Time of compilation */
+/* Time of configuration */
 #undef CONFIGTIME
 
 /* Default parameter */
@@ -62,6 +62,9 @@
 
 /* Default parameter */
 #undef DP_YCOL_V
+
+/* Define to 1 if you have the <argp.h> header file. */
+#undef HAVE_ARGP_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
