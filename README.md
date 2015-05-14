@@ -1,6 +1,14 @@
 EllipticalMask
 ==============
 
+EllipticalMask is discontinued. Its core algorithms are now implemented in 
+MakeProfiles and the other tools in GNU Astronomy Utilities:
+
+https://www.gnu.org/software/gnuastro/
+
+Please visit there for a much better user experience and more accurate
+programs.
+
 Place elliptical masks over an image or in a separate image.
 
 Description
